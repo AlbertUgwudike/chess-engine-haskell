@@ -1,7 +1,8 @@
-module Parser where 
-import Data.Char
-import ChessData
-import Data.Maybe (fromMaybe)
+module Parser where
+
+import           ChessData  (File (Eight, One), Pos, Rank (A, H))
+import           Data.Char  (ord)
+import           Data.Maybe (fromMaybe)
 
 data ParserAction = Resign | ParseFail | Move (Pos,  Pos) deriving (Eq, Show)
 
@@ -21,10 +22,10 @@ parseMove "Resign" =  Resign
 
 -- two comma separated coordinates
 parseMove [ora, ofi, ',', ' ', dra, dfi] = fromMaybe ParseFail t
-    where t = do r1 <- parseRank ora 
-                 r2 <- parseRank dra 
-                 f1 <- parseFile ofi 
-                 f2 <- parseFile dfi 
+    where t = do r1 <- parseRank ora
+                 r2 <- parseRank dra
+                 f1 <- parseFile ofi
+                 f2 <- parseFile dfi
                  return $ Move ((r1, f1), (r2, f2))
 
 parseMove _ = ParseFail
@@ -32,4 +33,4 @@ parseMove _ = ParseFail
 -- TODO
 
 catMoves :: [ParserAction] -> [(Pos, Pos)]
-catMoves pas =  foldl (\ acc pa -> case pa of { Move m -> m : acc; _ -> acc; }) [] pas
+catMoves =  foldl (\ acc pa -> case pa of { Move m -> m : acc; _ -> acc; }) []
