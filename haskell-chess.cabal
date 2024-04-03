@@ -26,8 +26,10 @@ source-repository head
 library
   exposed-modules:
       ChessData
-      Game
+      Common
+      Engine
       Parser
+      ReaderEngine
   other-modules:
       Paths_haskell_chess
   autogen-modules:
@@ -37,6 +39,7 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , mtl
   default-language: Haskell2010
 
 executable haskell-chess-exe
@@ -51,6 +54,7 @@ executable haskell-chess-exe
   build-depends:
       base >=4.7 && <5
     , haskell-chess
+    , mtl
   default-language: Haskell2010
 
 test-suite haskell-chess-test
@@ -66,4 +70,5 @@ test-suite haskell-chess-test
   build-depends:
       base >=4.7 && <5
     , haskell-chess
+    , mtl
   default-language: Haskell2010

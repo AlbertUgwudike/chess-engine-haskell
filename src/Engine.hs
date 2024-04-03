@@ -1,46 +1,23 @@
-module Game where
+module Engine where
 
-import           ChessData
-import           Data.Functor ((<&>))
-import           Data.Maybe   (fromMaybe, isJust, isNothing, listToMaybe,
-                               mapMaybe)
+import           Common
+import           Control.Arrow ((&&&))
+import           Data.Functor  ((<&>))
+import           Data.Maybe    (fromMaybe, isJust, isNothing, listToMaybe,
+                                mapMaybe)
 
-data Game = Game {count :: Int, color :: Color, board :: Board}
-
-instance Show Game where
-    show game@(Game _ c b) = unlines [moveMsg, specialMsg, show b]
-        where
-            col = if c == Wht then "White" else "Black"
-            moveMsg = col ++ " to move."
-            specialMsg = case status game of
-                Checkmate -> col ++ " Checkmate!"
-                Check     -> col ++ " Check!"
-                Stalemate -> col ++ " Stalemate!"
-                Boring    -> ""
 
 runEngine :: Game -> [(Origin, Dest)] -> Game
 runEngine = foldl move
 
-status :: Game -> Status
-status game
+determineStatus :: Game -> Status
+determineStatus game
     | inCheck && inStalemate = Checkmate
     | inCheck = Check
     | inStalemate = Stalemate
     | otherwise = Boring
     where
-        (inCheck, inStalemate) = (isCheck game, isStalemate game)
-
-startGame :: Game
-startGame = Game 0 Wht startBoard
-
-mateGame :: Game
-mateGame =
-    Game 0 Wht $
-        setPieces emptyBoard
-            [ (Just (Piece 0 Wht Kg), (A, One)),
-                (Just (Piece 0 Blk Rk), (B, Three)),
-                (Just (Piece 0 Blk Rk), (A, Four))
-            ]
+        (inCheck, inStalemate) = (isCheck &&& isStalemate) game
 
 isStalemate :: Game -> Bool
 isStalemate game = not $ or (allPositions >>= canMoveFrom)
@@ -51,7 +28,7 @@ isStalemate game = not $ or (allPositions >>= canMoveFrom)
 
 isCheckmate :: Game -> Bool
 isCheckmate game = fromMaybe False $ do
-    kingPos         <- getKingPos (board game) (color game)
+    kingPos         <- getKingPos game
     markingPosition <- listToMaybe (markers game kingPos)
 
     let moveKingPos dir   = dir kingPos
@@ -60,13 +37,13 @@ isCheckmate game = fromMaybe False $ do
     let betweens          = markingPosition : positionsBetween kingPos markingPosition
 
     let noKingMoves       = not $ any legalKingMove kingPositions
-    let noBlockOrCapture  = not . any (/= kingPos) $ betweens >>= markers (changeTurn game)
+    let noBlockOrCapture  = not . any (/= kingPos) $ betweens >>= markers game
     let multipleMarkers   = length (markers game kingPos) > 1
 
     return $ noKingMoves && (multipleMarkers || noBlockOrCapture)
 
 isCheck :: Game -> Bool
-isCheck game = (markers game <$> getKingPos (board game) (color game)) /= Just []
+isCheck game = (markers game <$> getKingPos game) /= Just []
 
 markers :: Game -> Pos -> [Pos]
 markers game pos = filter legalMoveFrom (basicPositions ++ knightPositions)
@@ -86,7 +63,7 @@ kingMoveType p (r1, f1) (r2, f2)
         castleDest               = (if r2 > r1 then F else D, f1)
 
 pawnMoveType :: Game -> Piece -> Origin -> Dest -> MoveType
-pawnMoveType (Game cnt _ b) p (r1, f1) (r2, f2)
+pawnMoveType (Game _ cnt _ b) p (r1, f1) (r2, f2)
     | rankDiff == 0 && fileDiff == 1 && destEmpty && advance = Standard (r1, f1) (r2, f2)
     | rankDiff == 0 && fileDiff == 2 && destEmpty && advance && moveCount p == 0 = Standard (r1, f1) (r2, f2)
     | rankDiff == 1 && fileDiff == 1 && advance && capture = Standard (r1, f1) (r2, f2)
@@ -105,12 +82,13 @@ pawnMoveType (Game cnt _ b) p (r1, f1) (r2, f2)
             return $ mc == cnt - 1 && pcol /= pieceColor p && nm == Pn
 
 calcMoveType :: Game -> Pos -> Pos -> MoveType
-calcMoveType game@(Game cnt col b) p1 p2
-    | not noBlock || not colorOkay = Illegal
+calcMoveType game@(Game s cnt col b) p1 p2
+    | not (noBlock && colorOkay && correctTurn) = Illegal
     | otherwise = maybe Illegal f pc1
     where
         (pc1, pc2)           = (getPiece b p1, getPiece b p2)
         (rankDiff, fileDiff) = rankFileDiff p1 p2
+        correctTurn          = (pieceColor <$> pc1) == Just col
         noBlock              = (name <$> pc1) == Just Kn || not (pieceBetween game p1 p2)
         colorOkay            = (pieceColor <$> pc1) == Just col && (pieceColor <$> pc1) /= (pieceColor <$> pc2)
         f p = case name p of
@@ -119,13 +97,13 @@ calcMoveType game@(Game cnt col b) p1 p2
             Bi -> standardIf (fileDiff == rankDiff) p1 p2
             Qn -> standardIf (rankDiff == 0 || fileDiff == 0 || fileDiff == rankDiff) p1 p2
             Kg -> kingMoveType p p1 p2
-            Pn -> pawnMoveType (Game cnt col b) p p1 p2
+            Pn -> pawnMoveType (Game s cnt col b) p p1 p2
 
 validate :: Game -> MoveType -> MoveType
 validate game moveType = if validMove then moveType else Illegal
     where
         testGame = performMove game moveType
-        notCheck = not $ isCheck testGame
+        notCheck = not $ isCheck (changeTurn testGame)
         validMove = notCheck && case moveType of
             Castle ori dest _ cdest -> null ([ori, dest, cdest] >>= markers game)
             _ -> True
@@ -134,10 +112,10 @@ move :: Game -> (Pos, Pos) -> Game
 move game (p1, p2) =
     case validate game (calcMoveType game p1 p2) of
         Illegal -> game
-        mt      -> changeTurn $ performMove game mt
+        mt      -> performMove game mt
 
 pieceBetween :: Game -> Pos -> Pos -> Bool
-pieceBetween (Game _ _ b) p1 p2 = any (isJust . getPiece b) $ positionsBetween p1 p2
+pieceBetween (Game _ _ _ b) p1 p2 = any (isJust . getPiece b) $ positionsBetween p1 p2
 
 positionsBetween :: Pos -> Pos -> [Pos]
 positionsBetween (r1, f1) (r2, f2)
@@ -150,10 +128,12 @@ positionsBetween (r1, f1) (r2, f2)
         (rankDiff, fileDiff) = rankFileDiff (r1, f1) (r2, f2)
 
 performMove :: Game -> MoveType -> Game
-performMove (Game cnt col b) mt = Game newCount col newBoard
+performMove (Game s cnt col b) mt = Game newStatus newCount newCol newBoard
     where
         oriPiece ori = getPiece b ori <&> \(Piece _ c n) -> Piece cnt c n
+        newStatus    = determineStatus $ Game s newCount newCol newBoard
         newCount     = cnt + 1
+        newCol       = if col == Wht then Blk else Wht
         newBoard     = setPieces b $ case mt of
             Illegal                 -> []
             Standard ori des        -> [(Nothing, ori), (oriPiece ori, des)]
@@ -161,5 +141,4 @@ performMove (Game cnt col b) mt = Game newCount col newBoard
             Castle ori des co cd    -> [(Nothing, co), (Nothing, ori), (oriPiece ori, des), (getPiece b co, cd)]
 
 changeTurn :: Game -> Game
-changeTurn (Game cnt Blk b) = Game cnt Wht b
-changeTurn (Game cnt Wht b) = Game cnt Blk b
+changeTurn game = game { color = if color game == Wht then Blk else Wht }

@@ -1,6 +1,6 @@
 module Parser where
 
-import           ChessData  (File (Eight, One), Pos, Rank (A, H))
+import           Common
 import           Data.Char  (ord)
 import           Data.Maybe (fromMaybe)
 
