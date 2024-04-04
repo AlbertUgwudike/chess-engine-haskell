@@ -38,6 +38,7 @@ calcMoveType p1 p2 = do
         pieces              = (pc1, pc2),
         piecePositions      = (p1, p2),
         blocked             = (name <$> pc1) /= pure Kn && pieceBetween (board game) p1 p2,
+        emptyDestination    = isNothing pc2,
         validColors         = (pieceColor <$> pc1) == Just (color game) && (pieceColor <$> pc1) /= (pieceColor <$> pc2),
         castleOrigin        = (if fst p2 > fst p1 then H else A, snd p1),
         castleDestination   = (if fst p2 > fst p1 then F else D, snd p1),
@@ -55,21 +56,20 @@ isOvershoot game p1 p2 = fromMaybe False $ do
     return $ mc == count game - 1 && pcol /= qcol && nm == Pn
 
 cMoveInfo :: MoveInfo -> MoveType
-cMoveInfo (MoveInfo (rd, fd) (pc1, pc2) (p1, p2) bk vc co cd pcp ia pc os) = moveType
+cMoveInfo (MoveInfo (rd, fd) (pc1, _) (p1, p2) bk ed vc co cd pcp ia pc os) = moveType
     where
         moveType = if not bk && vc then maybe Illegal f pc1 else Illegal
-        destEmpty = isNothing pc2
-        f p | name p == Rk && (rd == 0 || fd == 0)                                      = Standard  p1 p2
-            | name p == Kg && fd * rd == 2                                              = Standard  p1 p2
-            | name p == Bi && fd == rd                                                  = Standard  p1 p2
-            | name p == Qn && (rd == 0 || fd == 0 || fd == rd)                          = Standard  p1 p2
-            | name p == Kg && fd <= 1 && rd <= 1                                        = Standard  p1 p2
-            | name p == Pn && rd == 0 && fd == 1 && destEmpty && ia                     = Standard  p1 p2
-            | name p == Pn && rd == 0 && fd == 2 && destEmpty && ia && moveCount p == 0 = Standard  p1 p2
-            | name p == Pn && rd == 1 && fd == 1 && ia && pc                            = Standard  p1 p2
-            | name p == Pn && rd == 1 && fd == 1 && ia && os                            = EnPassant p1 p2 pcp
-            | name p == Kg && moveCount p == 0 && fd == 0 && rd == 2                    = Castle    p1 p2 co cd
-            | otherwise                                                                 = Illegal
+        f p | name p == Rk && (rd == 0 || fd == 0)                                  = Standard  p1 p2
+            | name p == Kg && fd * rd == 2                                          = Standard  p1 p2
+            | name p == Bi && fd == rd                                              = Standard  p1 p2
+            | name p == Qn && (rd == 0 || fd == 0 || fd == rd)                      = Standard  p1 p2
+            | name p == Kg && fd <= 1 && rd <= 1                                    = Standard  p1 p2
+            | name p == Pn && rd == 0 && fd == 1 && ed && ia                        = Standard  p1 p2
+            | name p == Pn && rd == 0 && fd == 2 && ed && ia && moveCount p == 0    = Standard  p1 p2
+            | name p == Pn && rd == 1 && fd == 1 && ia && pc                        = Standard  p1 p2
+            | name p == Pn && rd == 1 && fd == 1 && ia && os                        = EnPassant p1 p2 pcp
+            | name p == Kg && moveCount p == 0 && fd == 0 && rd == 2                = Castle    p1 p2 co cd
+            | otherwise                                                             = Illegal
 
 castleThroughCheck :: MoveType -> State Game Bool
 castleThroughCheck (Castle ori dest _ cdest) = not . all null <$> forM [ori, dest, cdest] markers

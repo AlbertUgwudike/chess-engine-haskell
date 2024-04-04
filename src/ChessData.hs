@@ -28,6 +28,7 @@ data MoveInfo = MoveInfo {
     pieces            :: (Maybe Piece, Maybe Piece),
     piecePositions    :: (Pos, Pos),
     blocked           :: Bool,
+    emptyDestination  :: Bool,
     validColors       :: Bool,
     castleOrigin      :: Pos,
     castleDestination :: Pos,
