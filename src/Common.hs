@@ -1,7 +1,8 @@
 module Common (
     module ChessData,
     getPiece, activeKingPos, setPiece, north, south, rankFileDiff, startGame, mateGame,
-    setPieces, standardIf, nextPiecePos, basicDirections, knightDirections, emptyBoard, startBoard
+    setPieces, standardIf, nextPiecePos, basicDirections, knightDirections, emptyBoard,
+    startBoard, posPiecePairs, movePiece
 ) where
 
 
@@ -50,13 +51,17 @@ startBoard = let pieceSet col = [map (Just . col) order, rowOf (Just $ col Pn)]
 getPiece :: Board -> Pos -> Maybe Piece
 getPiece (Board mat) (r, f) = mat !! (7 - fromEnum f) !! fromEnum r
 
+positions :: [(Rank, File)]
+positions = [(rank, file) | file <- [Eight, Seven ..], rank <- [A ..]]
+
+posPiecePairs :: Game -> [((Rank, File), Piece)]
+posPiecePairs = catMaybes . zipWith (fmap . (,)) positions . concat . pMatrix . board
+
 activeKingPos :: State Game (Maybe Pos)
 activeKingPos = do
     activeColor <- gets color
-    let positions        = [(rank, file) | file <- [Eight, Seven ..], rank <- [A ..]]
-        getPiecePosPairs = catMaybes . zipWith (fmap . (,)) positions . concat . pMatrix . board
-        isActiveKing     = (== (Kg, activeColor)) . (name &&& pieceColor)
-    gets $ fmap fst . find (isActiveKing . snd) . getPiecePosPairs
+    let isActiveKing     = (== (Kg, activeColor)) . (name &&& pieceColor)
+    gets $ fmap fst . find (isActiveKing . snd) . posPiecePairs
 
 
 setAt :: Int -> a -> [a] -> [a]
@@ -71,6 +76,17 @@ setPiece (Board mat) new (r, f) = Board $ setAt fidx newRow mat
 
 setPieces :: Board -> [(Maybe Piece, Pos)] -> Board
 setPieces = foldl (\ b (mp, pos) -> setPiece b mp pos)
+
+movePiece :: Game -> MoveType -> Board
+movePiece game mt = setPieces brd $ case mt of
+    Illegal                 -> []
+    Standard ori des        -> [(Nothing, ori), (oriPiece ori, des)]
+    EnPassant ori des cpos  -> [(Nothing, cpos), (Nothing, ori), (oriPiece ori, des)]
+    Castle ori des co cd    -> [(Nothing, co), (Nothing, ori), (oriPiece ori, des), (getPiece brd co, cd)]
+    where
+        brd = board game
+        cnt = count game
+        oriPiece ori = (\pc -> pc { moveCount = cnt }) <$> getPiece brd ori
 
 
 standardIf :: Bool -> Pos -> Pos -> MoveType

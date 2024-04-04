@@ -3,12 +3,10 @@ module Engine where
 import           Common
 import           Control.Arrow ((&&&))
 import           Data.Functor  ((<&>))
+import           Data.List     (elemIndex)
 import           Data.Maybe    (fromMaybe, isJust, isNothing, listToMaybe,
                                 mapMaybe)
 
-
-runEngine :: Game -> [(Origin, Dest)] -> Game
-runEngine = foldl move
 
 determineStatus :: Game -> Status
 determineStatus game
@@ -28,7 +26,7 @@ isStalemate game = not $ or (allPositions >>= canMoveFrom)
 
 isCheckmate :: Game -> Bool
 isCheckmate game = fromMaybe False $ do
-    kingPos         <- getKingPos game
+    kingPos         <- getKingPos (board game) (color game)
     markingPosition <- listToMaybe (markers game kingPos)
 
     let moveKingPos dir   = dir kingPos
@@ -43,7 +41,7 @@ isCheckmate game = fromMaybe False $ do
     return $ noKingMoves && (multipleMarkers || noBlockOrCapture)
 
 isCheck :: Game -> Bool
-isCheck game = (markers game <$> getKingPos game) /= Just []
+isCheck game = (markers game <$> getKingPos (board game) (color game)) /= Just []
 
 markers :: Game -> Pos -> [Pos]
 markers game pos = filter legalMoveFrom (basicPositions ++ knightPositions)
@@ -108,7 +106,7 @@ validate game moveType = if validMove then moveType else Illegal
             Castle ori dest _ cdest -> null ([ori, dest, cdest] >>= markers game)
             _ -> True
 
-move :: Game -> (Pos, Pos) -> Game
+move :: Move
 move game (p1, p2) =
     case validate game (calcMoveType game p1 p2) of
         Illegal -> game
@@ -142,3 +140,11 @@ performMove (Game s cnt col b) mt = Game newStatus newCount newCol newBoard
 
 changeTurn :: Game -> Game
 changeTurn game = game { color = if color game == Wht then Blk else Wht }
+
+getKingPos :: Board -> Color -> Maybe Pos
+getKingPos (Board b) col = do
+    let nameBoard = map (map (fmap (\p -> (pieceColor p, name p)))) b
+    let kingPiece = Just (col, Kg)
+    fidx <- elemIndex True $ map (elem kingPiece) nameBoard
+    ridx <- elemIndex kingPiece $ nameBoard !! fidx
+    return (toEnum ridx, toEnum (7 - fidx))
