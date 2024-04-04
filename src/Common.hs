@@ -2,7 +2,8 @@ module Common (
     module ChessData,
     getPiece, activeKingPos, setPiece, north, south, rankFileDiff, startGame, mateGame,
     setPieces, standardIf, nextPiecePos, basicDirections, knightDirections, emptyBoard,
-    startBoard, posPiecePairs, movePiece
+    startBoard, posPiecePairs, movePiece, pieceBetween, positionsBetween, determineStatus,
+    runEngine
 ) where
 
 
@@ -60,9 +61,8 @@ posPiecePairs = catMaybes . zipWith (fmap . (,)) positions . concat . pMatrix . 
 activeKingPos :: State Game (Maybe Pos)
 activeKingPos = do
     activeColor <- gets color
-    let isActiveKing     = (== (Kg, activeColor)) . (name &&& pieceColor)
+    let isActiveKing = (== (Kg, activeColor)) . (name &&& pieceColor)
     gets $ fmap fst . find (isActiveKing . snd) . posPiecePairs
-
 
 setAt :: Int -> a -> [a] -> [a]
 setAt i n arr = take i arr ++ [n] ++ drop (i + 1) arr
@@ -88,7 +88,6 @@ movePiece game mt = setPieces brd $ case mt of
         cnt = count game
         oriPiece ori = (\pc -> pc { moveCount = cnt }) <$> getPiece brd ori
 
-
 standardIf :: Bool -> Pos -> Pos -> MoveType
 standardIf flag p1 p2 = if flag then Standard p1 p2 else Illegal
 
@@ -112,3 +111,25 @@ mateBoard = setPieces emptyBoard
 mateGame :: Game
 mateGame = Game Checkmate 0 Wht mateBoard
 
+pieceBetween :: Board -> Pos -> Pos -> Bool
+pieceBetween brd p1 p2 = any (isJust . getPiece brd) $ positionsBetween p1 p2
+
+positionsBetween :: Pos -> Pos -> [Pos]
+positionsBetween (r1, f1) (r2, f2)
+    | r1 == r2 = [(r1, f) | f <- orderRange f1 f2]
+    | f1 == f2 = [(r, f1) | r <- orderRange r1 r2]
+    | fileDiff == rankDiff = zip (orderRange r1 r2) (orderRange f1 f2)
+    | otherwise = []
+    where
+        orderRange a b       = init . tail $ if a < b then [a .. b] else reverse [b .. a]
+        (rankDiff, fileDiff) = rankFileDiff (r1, f1) (r2, f2)
+
+determineStatus :: Bool -> Bool -> Status
+determineStatus inCheck inStalemate
+    | inCheck && inStalemate  = Checkmate
+    | inCheck                 = Check
+    | inStalemate             = Stalemate
+    | otherwise               = Boring
+
+runEngine :: RunEngine
+runEngine = foldl

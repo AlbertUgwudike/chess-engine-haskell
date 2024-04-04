@@ -27,9 +27,9 @@ library
   exposed-modules:
       ChessData
       Common
-      Engine
+      EngineFunctional
+      EngineMonadic
       Parser
-      ReaderEngine
   other-modules:
       Paths_haskell_chess
   autogen-modules:

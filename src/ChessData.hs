@@ -1,7 +1,7 @@
 module ChessData (
     Game (..), Name(..), Color(..), Piece(..), Rank(..), File(..),
-    MoveType(..), Pos, Origin, Dest, Status(..), Board(..), Move, runEngine,
-    MoveInfo(..)
+    MoveType(..), Pos, Origin, Dest, Status(..), Board(..), MoveF,
+    MoveInfo(..), RunEngine
 ) where
 
 
@@ -16,15 +16,12 @@ data MoveType = Illegal
               | EnPassant Pos Pos Pos
               | Castle Pos Pos Pos Pos                                      deriving (Show, Eq)
 
-newtype Board = Board { pMatrix :: [[Maybe Piece]] }                        deriving (Eq)
-
-type Pos = (Rank, File)
-type Origin = Pos
-type Dest = Pos
-
-type Move = Game -> (Pos, Pos) -> Game
-
-
+data Game = Game {
+    status :: Status,
+    count  :: Int,
+    color  :: Color,
+    board  :: Board
+} deriving (Eq)
 
 data MoveInfo = MoveInfo {
     posDifference     :: (Int, Int),
@@ -37,20 +34,16 @@ data MoveInfo = MoveInfo {
     pawnCapturedPos   :: Pos,
     isAdvance         :: Bool,
     pawnCapture       :: Bool,
-    enPassant         :: Bool
+    overshoot         :: Bool
 }
 
-type RunEngine = Move -> Game -> [(Origin, Dest)] -> Game
+newtype Board = Board { pMatrix :: [[Maybe Piece]] }                        deriving (Eq)
 
-runEngine :: RunEngine
-runEngine = foldl
-
-data Game = Game {
-    status :: Status,
-    count  :: Int,
-    color  :: Color,
-    board  :: Board
-} deriving (Eq)
+type Pos = (Rank, File)
+type Origin = Pos
+type Dest = Pos
+type MoveF = Game -> (Pos, Pos) -> Game
+type RunEngine = MoveF -> Game -> [(Origin, Dest)] -> Game
 
 instance Show Game where
     show game = unlines [moveMsg, specialMsg, show $ board game]
@@ -69,8 +62,5 @@ instance Show Board where
               showPiece Nothing = pad space
               space = "       "
               pad n = hcat (replicate 4 "|") [replicate 7 '-', space, n, space]
-
-
-hcat :: [String] -> [String] -> [String]
-hcat = zipWith (++)
+              hcat = zipWith (++)
 
