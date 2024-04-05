@@ -80,16 +80,16 @@ setPieces = foldl (\ b (mp, pos) -> setPiece b mp pos)
 movePiece :: Game -> MoveType -> Board
 movePiece game mt = setPieces brd $ case mt of
     Illegal                 -> []
-    Standard ori des        -> [(Nothing, ori), (oriPiece ori, des)]
-    EnPassant ori des cpos  -> [(Nothing, cpos), (Nothing, ori), (oriPiece ori, des)]
-    Castle ori des co cd    -> [(Nothing, co), (Nothing, ori), (oriPiece ori, des), (getPiece brd co, cd)]
+    Standard (ori, des)        -> [(Nothing, ori), (oriPiece ori, des)]
+    EnPassant (ori, des) cpos  -> [(Nothing, cpos), (Nothing, ori), (oriPiece ori, des)]
+    Castle (ori, des) (co, cd)    -> [(Nothing, co), (Nothing, ori), (oriPiece ori, des), (getPiece brd co, cd)]
     where
         brd = board game
         cnt = count game
         oriPiece ori = (\pc -> pc { moveCount = cnt }) <$> getPiece brd ori
 
 standardIf :: Bool -> Pos -> Pos -> MoveType
-standardIf flag p1 p2 = if flag then Standard p1 p2 else Illegal
+standardIf flag p1 p2 = if flag then Standard (p1, p2) else Illegal
 
 nextPiecePos :: Board -> (Pos -> Maybe Pos) -> Pos -> Maybe Pos
 nextPiecePos b dir pos

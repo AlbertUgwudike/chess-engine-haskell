@@ -1,6 +1,15 @@
-module EngineMonadic where
+module EngineMonadic (move) where
 
-import           Common
+import           Common               (Color (Blk, Wht), File (Five, Four),
+                                       Game (board, color, count, status),
+                                       MoveF, MoveInfo (..), MoveType (..),
+                                       Name (Bi, Kg, Kn, Pn, Qn, Rk),
+                                       Piece (Piece, moveCount, name, pieceColor),
+                                       Pos, Rank (A, D, F, H), activeKingPos,
+                                       basicDirections, determineStatus,
+                                       getPiece, knightDirections, movePiece,
+                                       nextPiecePos, north, pieceBetween,
+                                       posPiecePairs, rankFileDiff, south)
 import           Control.Arrow        ((&&&))
 import           Control.Monad.Reader (filterM, forM, when)
 import           Control.Monad.State  (MonadState (get, put), State, execState,
@@ -35,17 +44,16 @@ calcMoveType p1 p2 = do
     (pc1, pc2) <- gets $ gameToPiece p1 &&& gameToPiece p2
     gets $ \game -> cMoveInfo MoveInfo {
         posDifference       = rankFileDiff p1 p2,
-        pieces              = (pc1, pc2),
+        pieceName           = name <$> pc1,
         piecePositions      = (p1, p2),
         blocked             = (name <$> pc1) /= pure Kn && pieceBetween (board game) p1 p2,
         emptyDestination    = isNothing pc2,
         validColors         = (pieceColor <$> pc1) == Just (color game) && (pieceColor <$> pc1) /= (pieceColor <$> pc2),
-        castleOrigin        = (if fst p2 > fst p1 then H else A, snd p1),
-        castleDestination   = (if fst p2 > fst p1 then F else D, snd p1),
-        pawnCapturedPos     = (fst p2, if snd p2 > snd p1 then Five else Four),
+        castleRanks         = if fst p2 > fst p1 then ((H, snd p1), (F, snd p1)) else ((A, snd p1), (D, snd p1)),
+        overshotPos         = (fst p2, if snd p2 > snd p1 then Five else Four),
         isAdvance           = (snd p1 < snd p2) == ((pieceColor <$> pc1) == pure Wht),
-        pawnCapture         = ((/=) . pieceColor <$> pc1 <*> (pieceColor <$> pc2)) == pure True,
-        overshoot           = isOvershoot game p1 p2
+        overshoot           = isOvershoot game p1 p2,
+        firstMove           = (moveCount <$> pc1) == Just 0
     }
 
 isOvershoot :: Game -> Pos -> Pos -> Bool
@@ -56,30 +64,30 @@ isOvershoot game p1 p2 = fromMaybe False $ do
     return $ mc == count game - 1 && pcol /= qcol && nm == Pn
 
 cMoveInfo :: MoveInfo -> MoveType
-cMoveInfo (MoveInfo (rd, fd) (pc1, _) (p1, p2) bk ed vc co cd pcp ia pc os) = moveType
-    where
-        moveType = if not bk && vc then maybe Illegal f pc1 else Illegal
-        f p | name p == Rk && (rd == 0 || fd == 0)                                  = Standard  p1 p2
-            | name p == Kg && fd * rd == 2                                          = Standard  p1 p2
-            | name p == Bi && fd == rd                                              = Standard  p1 p2
-            | name p == Qn && (rd == 0 || fd == 0 || fd == rd)                      = Standard  p1 p2
-            | name p == Kg && fd <= 1 && rd <= 1                                    = Standard  p1 p2
-            | name p == Pn && rd == 0 && fd == 1 && ed && ia                        = Standard  p1 p2
-            | name p == Pn && rd == 0 && fd == 2 && ed && ia && moveCount p == 0    = Standard  p1 p2
-            | name p == Pn && rd == 1 && fd == 1 && ia && pc                        = Standard  p1 p2
-            | name p == Pn && rd == 1 && fd == 1 && ia && os                        = EnPassant p1 p2 pcp
-            | name p == Kg && moveCount p == 0 && fd == 0 && rd == 2                = Castle    p1 p2 co cd
-            | otherwise                                                             = Illegal
+cMoveInfo (MoveInfo _ Nothing _ _ _ _ _ _ _ _ _) = Illegal
+cMoveInfo (MoveInfo (dx, dy) (Just n) ps block emptyDes validCol cstPs ovrPos adv ovShoot fstMove)
+    | block || not validCol                                        = Illegal
+    | n == Rk && (dx == 0 || dy == 0)                              = Standard  ps
+    | n == Kg && dy * dx == 2                                      = Standard  ps
+    | n == Bi && dy == dx                                          = Standard  ps
+    | n == Qn && (dx == 0 || dy == 0 || dy == dx)                  = Standard  ps
+    | n == Kg && dy <= 1 && dx <= 1                                = Standard  ps
+    | n == Pn && dx == 0 && dy == 1 && emptyDes && adv             = Standard  ps
+    | n == Pn && dx == 0 && dy == 2 && emptyDes && adv && fstMove  = Standard  ps
+    | n == Pn && dx == 1 && dy == 1 && adv && not emptyDes         = Standard  ps
+    | n == Pn && dx == 1 && dy == 1 && adv && ovShoot              = EnPassant ps ovrPos
+    | n == Kg && fstMove && dy == 0 && dx == 2                     = Castle    ps cstPs
+    | otherwise                                                    = Illegal
 
-castleThroughCheck :: MoveType -> State Game Bool
-castleThroughCheck (Castle ori dest _ cdest) = not . all null <$> forM [ori, dest, cdest] markers
-castleThroughCheck _ = return False
+invalidCastle :: MoveType -> State Game Bool
+invalidCastle (Castle (ori, dest) (_, cdest)) = not . all null <$> forM [ori, dest, cdest] markers
+invalidCastle _ = return False
 
 validate :: MoveType -> State Game MoveType
 validate moveType = do
     game <- get
     performMove moveType
-    invalidMove <- (||) <$> isCheck <*> castleThroughCheck moveType
+    invalidMove <- (||) <$> isCheck <*> invalidCastle moveType
     put game
     return $ if invalidMove then Illegal else moveType
 
@@ -98,6 +106,4 @@ performMove mt = modify $ \g -> g { board = movePiece g mt}
 changeTurn, incrementCount, updateStatus :: State Game ()
 changeTurn     = modify $ \ g -> g { color = if color g == Wht then Blk else Wht }
 incrementCount = modify $ \ g -> g { count = 1 + count g }
-updateStatus   = do
-    newStatus <- determineStatus <$> isCheck <*> isStalemate
-    modify $ \g -> g { status = newStatus }
+updateStatus   = get >>= \g -> determineStatus <$> isCheck <*> isStalemate >>= (\s -> put g { status = s })

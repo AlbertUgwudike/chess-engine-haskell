@@ -1,4 +1,4 @@
-module Parser where
+module Parser (parseMove, ParserAction (..), catMoves) where
 
 import           Common
 import           Data.Char  (ord)

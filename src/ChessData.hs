@@ -12,9 +12,9 @@ data Rank = A | B | C | D | E | F | G | H                                   deri
 data File = One | Two | Three | Four | Five | Six | Seven | Eight           deriving (Show, Enum, Eq, Ord)
 data Status = Checkmate | Check | Stalemate | Boring                        deriving (Eq)
 data MoveType = Illegal
-              | Standard Pos Pos
-              | EnPassant Pos Pos Pos
-              | Castle Pos Pos Pos Pos                                      deriving (Show, Eq)
+              | Standard (Pos, Pos)
+              | EnPassant (Pos, Pos) Pos
+              | Castle (Pos, Pos) (Pos, Pos)                                deriving (Show, Eq)
 
 data Game = Game {
     status :: Status,
@@ -24,18 +24,17 @@ data Game = Game {
 } deriving (Eq)
 
 data MoveInfo = MoveInfo {
-    posDifference     :: (Int, Int),
-    pieces            :: (Maybe Piece, Maybe Piece),
-    piecePositions    :: (Pos, Pos),
-    blocked           :: Bool,
-    emptyDestination  :: Bool,
-    validColors       :: Bool,
-    castleOrigin      :: Pos,
-    castleDestination :: Pos,
-    pawnCapturedPos   :: Pos,
-    isAdvance         :: Bool,
-    pawnCapture       :: Bool,
-    overshoot         :: Bool
+    posDifference    :: (Int, Int),
+    pieceName        :: Maybe Name,
+    piecePositions   :: (Pos, Pos),
+    blocked          :: Bool,
+    emptyDestination :: Bool,
+    validColors      :: Bool,
+    castleRanks      :: (Pos, Pos),
+    overshotPos      :: Pos,
+    isAdvance        :: Bool,
+    overshoot        :: Bool,
+    firstMove        :: Bool
 }
 
 newtype Board = Board { pMatrix :: [[Maybe Piece]] }                        deriving (Eq)

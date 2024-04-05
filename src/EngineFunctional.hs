@@ -1,6 +1,13 @@
-module EngineFunctional where
+module EngineFunctional (move) where
 
-import           Common
+import           Common        (Board (Board), Color (..), Dest,
+                                File (Eight, Five, Four, One), Game (..), MoveF,
+                                MoveType (..), Name (Bi, Kg, Kn, Pn, Qn, Rk),
+                                Origin, Piece (..), Pos, Rank (A, D, F, H),
+                                basicDirections, determineStatus, getPiece,
+                                knightDirections, movePiece, nextPiecePos,
+                                north, pieceBetween, rankFileDiff, south,
+                                standardIf)
 import           Control.Arrow ((&&&))
 import           Data.List     (elemIndex)
 import           Data.Maybe    (fromMaybe, isNothing, mapMaybe)
@@ -25,8 +32,8 @@ markers game pos = filter legalMoveFrom (basicPositions ++ knightPositions)
 
 kingMoveType :: Piece -> Origin -> Dest -> MoveType
 kingMoveType p (r1, f1) (r2, f2)
-    | fileDiff <= 1 && rankDiff <= 1 = Standard (r1, f1) (r2, f2)
-    | moveCount p == 0 && fileDiff == 0 && rankDiff == 2 = Castle (r1, f1) (r2, f2) cOrigin cDest
+    | fileDiff <= 1 && rankDiff <= 1 = Standard ((r1, f1), (r2, f2))
+    | moveCount p == 0 && fileDiff == 0 && rankDiff == 2 = Castle ((r1, f1), (r2, f2)) (cOrigin, cDest)
     | otherwise = Illegal
     where
         (rankDiff, fileDiff)     = rankFileDiff (r1, f1) (r2, f2)
@@ -35,10 +42,10 @@ kingMoveType p (r1, f1) (r2, f2)
 
 pawnMoveType :: Game -> Piece -> Origin -> Dest -> MoveType
 pawnMoveType (Game _ cnt _ b) p (r1, f1) (r2, f2)
-    | rankDiff == 0 && fileDiff == 1 && destEmpty && advance = Standard (r1, f1) (r2, f2)
-    | rankDiff == 0 && fileDiff == 2 && destEmpty && advance && moveCount p == 0 = Standard (r1, f1) (r2, f2)
-    | rankDiff == 1 && fileDiff == 1 && advance && capture = Standard (r1, f1) (r2, f2)
-    | rankDiff == 1 && fileDiff == 1 && advance && enPassant = EnPassant (r1, f1) (r2, f2) capturedPos
+    | rankDiff == 0 && fileDiff == 1 && destEmpty && advance = Standard ((r1, f1), (r2, f2))
+    | rankDiff == 0 && fileDiff == 2 && destEmpty && advance && moveCount p == 0 = Standard ((r1, f1), (r2, f2))
+    | rankDiff == 1 && fileDiff == 1 && advance && capture = Standard ((r1, f1), (r2, f2))
+    | rankDiff == 1 && fileDiff == 1 && advance && enPassant = EnPassant ((r1, f1), (r2, f2)) capturedPos
     | otherwise = Illegal
     where
         (rankDiff, fileDiff) = rankFileDiff (r1, f1) (r2, f2)
@@ -76,7 +83,7 @@ validate game moveType = if validMove then moveType else Illegal
         testGame = performMove game moveType
         notCheck = not $ isCheck (changeTurn testGame)
         validMove = notCheck && case moveType of
-            Castle ori dest _ cdest -> null ([ori, dest, cdest] >>= markers game)
+            Castle (ori, dest) (_, cdest) -> null ([ori, dest, cdest] >>= markers game)
             _ -> True
 
 move :: MoveF
