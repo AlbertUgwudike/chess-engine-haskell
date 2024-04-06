@@ -86,7 +86,7 @@ invalidCastle _ = return False
 validate :: MoveType -> State Game MoveType
 validate moveType = do
     game <- get
-    performMove moveType
+    updateBoard moveType
     invalidMove <- (||) <$> isCheck <*> invalidCastle moveType
     put game
     return $ if invalidMove then Illegal else moveType
@@ -94,16 +94,19 @@ validate moveType = do
 move :: MoveF
 move g (p1, p2) = flip execState g $ do
     moveType <- calcMoveType p1 p2 >>= validate
-    when (moveType /= Illegal) $ do
-        performMove moveType
-        incrementCount
-        changeTurn
-        updateStatus
+    when (moveType /= Illegal) $ updateGame moveType
 
-performMove :: MoveType -> State Game ()
-performMove mt = modify $ \g -> g { board = movePiece g mt}
+updateGame :: MoveType -> State Game ()
+updateGame mt = do
+    updateBoard mt
+    updateCount
+    changeTurn
+    updateStatus
 
-changeTurn, incrementCount, updateStatus :: State Game ()
+updateBoard :: MoveType -> State Game ()
+updateBoard mt = modify $ \g -> g { board = movePiece g mt}
+
+changeTurn, updateCount, updateStatus :: State Game ()
 changeTurn     = modify $ \ g -> g { color = if color g == Wht then Blk else Wht }
-incrementCount = modify $ \ g -> g { count = 1 + count g }
+updateCount = modify $ \ g -> g { count = 1 + count g }
 updateStatus   = get >>= \g -> determineStatus <$> isCheck <*> isStalemate >>= (\s -> put g { status = s })
