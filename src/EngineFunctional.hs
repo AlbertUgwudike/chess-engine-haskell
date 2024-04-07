@@ -2,7 +2,7 @@ module EngineFunctional (move) where
 
 import           Common        (Board (Board), Color (..), Dest,
                                 File (Eight, Five, Four, One), Game (..), MoveF,
-                                MoveType (..), Name (Bi, Kg, Kn, Pn, Qn, Rk),
+                                MoveType (..), Name (Bi, Kg, Kt, Pn, Qn, Rk),
                                 Origin, Piece (..), Pos, Rank (A, D, F, H),
                                 basicDirections, determineStatus, getPiece,
                                 knightDirections, movePiece, nextPiecePos,
@@ -67,11 +67,11 @@ calcMoveType (Game s cnt col b) p1 p2
         (pc1, pc2)           = (getPiece b p1, getPiece b p2)
         (rankDiff, fileDiff) = rankFileDiff p1 p2
         correctTurn          = (pieceColor <$> pc1) == Just col
-        noBlock              = (name <$> pc1) == Just Kn || not (pieceBetween b p1 p2)
+        noBlock              = (name <$> pc1) == Just Kt || not (pieceBetween b p1 p2)
         colorOkay            = (pieceColor <$> pc1) == Just col && (pieceColor <$> pc1) /= (pieceColor <$> pc2)
         f p = case name p of
             Rk -> standardIf (rankDiff == 0 || fileDiff == 0) p1 p2
-            Kn -> standardIf (fileDiff * rankDiff == 2) p1 p2
+            Kt -> standardIf (fileDiff * rankDiff == 2) p1 p2
             Bi -> standardIf (fileDiff == rankDiff) p1 p2
             Qn -> standardIf (rankDiff == 0 || fileDiff == 0 || fileDiff == rankDiff) p1 p2
             Kg -> kingMoveType p p1 p2

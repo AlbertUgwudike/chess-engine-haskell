@@ -39,7 +39,7 @@ rowOf :: Maybe Piece -> [Maybe Piece]
 rowOf = replicate 8
 
 order :: [Name]
-order = [Rk, Kn, Bi, Qn, Kg, Bi, Kn, Rk]
+order = [Rk, Kt, Bi, Qn, Kg, Bi, Kt, Rk]
 
 emptyBoard :: Board
 emptyBoard = Board $ replicate 8 $ replicate 8 Nothing

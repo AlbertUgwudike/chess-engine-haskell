@@ -3,7 +3,7 @@ module EngineMonadic (move) where
 import           Common               (Color (Blk, Wht), File (Five, Four),
                                        Game (board, color, count, status),
                                        MoveF, MoveInfo (..), MoveType (..),
-                                       Name (Bi, Kg, Kn, Pn, Qn, Rk),
+                                       Name (Bi, Kg, Kt, Pn, Qn, Rk),
                                        Piece (Piece, moveCount, name, pieceColor),
                                        Pos, Rank (A, D, F, H), activeKingPos,
                                        basicDirections, determineStatus,
@@ -46,7 +46,7 @@ calcMoveType p1 p2 = do
         posDifference       = rankFileDiff p1 p2,
         pieceName           = name <$> pc1,
         piecePositions      = (p1, p2),
-        blocked             = (name <$> pc1) /= pure Kn && pieceBetween (board game) p1 p2,
+        blocked             = (name <$> pc1) /= pure Kt && pieceBetween (board game) p1 p2,
         emptyDestination    = isNothing pc2,
         validColors         = (pieceColor <$> pc1) == Just (color game) && (pieceColor <$> pc1) /= (pieceColor <$> pc2),
         castleRanks         = if fst p2 > fst p1 then ((H, snd p1), (F, snd p1)) else ((A, snd p1), (D, snd p1)),
@@ -68,7 +68,7 @@ cMoveInfo (MoveInfo _ Nothing _ _ _ _ _ _ _ _ _) = Illegal
 cMoveInfo (MoveInfo (dx, dy) (Just n) ps block emptyDes validCol cstPs ovrPos adv ovShoot fstMove)
     | block || not validCol                                        = Illegal
     | n == Rk && (dx == 0 || dy == 0)                              = Standard  ps
-    | n == Kg && dy * dx == 2                                      = Standard  ps
+    | n == Kt && dy * dx == 2                                      = Standard  ps
     | n == Bi && dy == dx                                          = Standard  ps
     | n == Qn && (dx == 0 || dy == 0 || dy == dx)                  = Standard  ps
     | n == Kg && dy <= 1 && dx <= 1                                = Standard  ps

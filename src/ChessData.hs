@@ -5,11 +5,11 @@ module ChessData (
 ) where
 
 
-data Name = Rk | Kn | Bi | Qn | Kg | Pn                                     deriving (Show, Enum, Eq, Ord)
+data Name = Rk | Kt | Bi | Qn | Kg | Pn                                     deriving (Show, Enum, Eq, Ord)
 data Color = Blk | Wht                                                      deriving (Show, Eq)
 data Piece = Piece { moveCount :: Int, pieceColor :: Color, name :: Name }  deriving (Show, Eq)
 data Rank = A | B | C | D | E | F | G | H                                   deriving (Show, Enum, Eq, Ord)
-data File = One | Two | Three | Four | Five | Six | Seven | Eight           deriving (Show, Enum, Eq, Ord)
+data File = One | Two | Three | Four | Five | Six | Seven | Eight           deriving (Enum, Eq, Ord)
 data Status = Checkmate | Check | Stalemate | Boring                        deriving (Eq)
 data MoveType = Illegal
               | Standard (Pos, Pos)
@@ -64,3 +64,13 @@ instance Show Board where
               pad n = hcat (replicate 4 "|") [replicate 7 '-', space, n, space]
               hcat = zipWith (++)
 
+instance Show File where
+    show file = case file of
+        One   -> "1"
+        Two   -> "2"
+        Three -> "3"
+        Four  -> "4"
+        Five  -> "5"
+        Six   -> "6"
+        Seven -> "7"
+        Eight -> "8"

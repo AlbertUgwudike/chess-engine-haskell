@@ -1,4 +1,4 @@
-module Parser (parseMove, ParserAction (..), catMoves) where
+module Parser (parseMove, ParserAction (..), catMoves, writeMove) where
 
 import           Common
 import           Data.Char  (ord)
@@ -31,6 +31,9 @@ parseMove [ora, ofi, ',', ' ', dra, dfi] = fromMaybe ParseFail t
 parseMove _ = ParseFail
 -- primary pawn
 -- TODO
+
+writeMove :: (Pos, Pos) -> String
+writeMove ((r1, f1), (r2, f2)) = concat [show r1, show f1, ",", " ", show r2, show f2]
 
 catMoves :: [ParserAction] -> [(Pos, Pos)]
 catMoves =  foldl (\ acc pa -> case pa of { Move m -> m : acc; _ -> acc; }) []
